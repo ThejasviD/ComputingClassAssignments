@@ -1,0 +1,126 @@
+---
+title: "607HW2"
+author: "Thejasvi Dhanireddy"
+date: "2024-09-16"
+output: word_document
+---
+
+Problem 1
+
+```{r}
+RowMeansImpute <- function(A, prop.missing=0.5) {
+  prop.missing.function <- apply(A, 1, function(row) mean(is.na(row)))
+    row.means <- numeric(nrow(A))
+  for (i in 1:nrow(A)) {
+    if (prop.missing.function[i] < prop.missing) {
+      non_na_values <- A[i, !is.na(A[i, ])]
+      na_indices <- which(is.na(A[i, ]))
+      if (length(non_na_values) > 0 && length(na_indices) > 0) {
+        A[i, na_indices] <- sample(non_na_values, length(na_indices), replace = TRUE)
+      }
+      row.means[i] <- mean(A[i, ])
+    } else {
+      row.means[i] <- NA
+    }
+  }
+  
+  result <- list(
+    prop.missing = prop.missing.function,
+    row.means = row.means
+  )
+  
+  return(result)
+}
+```
+
+
+```{r}
+A <- rbind( c(1,4,6,7), c(2,8,3,1), c(5,1,12,17))
+RowMeansImpute(A)
+```
+```{r}
+A <- rbind( c(1,NA,6,7), c(2,8,NA,NA), c(5,1,12,17))
+RowMeansImpute(A)
+```
+
+```{r}
+A <- rbind( c(1,NA,6,7), c(2,8,NA,NA), c(5,1,12,17))
+RowMeansImpute(A)
+RowMeansImpute(A, prop.missing=0.75)
+```
+
+
+```{r}
+A <- matrix(1:6, nrow=6, ncol=4, byrow=TRUE)
+A[c(1, 11, 14, 22, 23)] <- NA
+RowMeansImpute(A)
+RowMeansImpute(A, prop.missing=0.75)
+RowMeansImpute(A, prop.missing=0.25)
+```
+
+Problem 2
+
+```{r include=FALSE}
+library(dplyr)
+library(readr)
+flights<-read.csv("C:\\Users\\Main\\Documents\\BST607\\nycflights.csv")
+```
+
+Part A
+```{r}
+length(unique(flights$carrier))
+table(flights$carrier)
+names(which.max(table(flights$carrier)))
+ max(table(flights$carrier))
+```
+
+There are 15 different carriers. The carrier UA had the most flight departures with 1761 departures.
+
+Part B
+```{r}
+result <- flights[flights$month==2 & flights$hour<8,]
+nrow(result)
+```
+
+Part C
+```{r}
+answer <- flights %>%
+  group_by(origin) %>%
+  summarise(
+    mean_distance = mean(distance),  
+    sd_distance = sd(distance)       
+  )
+answer
+```
+
+
+Part D
+```{r}
+complete_flights <- flights[complete.cases(flights$distance, flights$dep_delay), ]
+correlation <- cor(complete_flights$distance, complete_flights$dep_delay)
+correlation
+```
+
+Part E
+```{r}
+start_time <- 500  
+end_time <- 2400   
+time_windows <- seq(500, 2400, by = 30)
+delay_matrix <- matrix(NA, nrow = 38, ncol = 3)
+colnames(delay_matrix) <- c("JFK", "LGA", "EWR")
+
+for (i in 1:38) {
+  time_lower <- time_windows[i]
+  time_upper <- time_windows[i + 1]
+  for (airport in c("JFK", "LGA", "EWR")) {
+    flights_subset <- subset(flights, origin == airport & 
+                                      actual_dep_time >= time_lower & 
+                                      actual_dep_time < time_upper)
+    
+    delay <- mean(flights_subset$dep_delay, na.rm = TRUE)
+    delay_matrix[i, airport] <- delay
+  }
+}
+delay_matrix
+```
+

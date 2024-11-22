@@ -1,0 +1,233 @@
+---
+title: "607FinalAssignment"
+author: "Thejasvi Dhanireddy"
+date: "2024-09-27"
+output: word_document
+---
+
+```{r, results='hide'}
+library(ggplot2)
+library(dplyr)
+library(readr)
+LungClinical<-read_csv("C:\\Users\\Main\\Documents\\BST607\\LungClinical.csv")
+```
+
+
+Problem 1
+```{r}
+sum(is.na(LungClinical))
+MissingValues <- colSums(is.na(LungClinical))
+MissingColumns <- MissingValues[MissingValues>0]
+MissingColumns
+```
+Immune_tx has 3 missing values, chemo_tx has 2, and durable_response has 523.  
+
+Problem 2  
+```{r}
+nrow(subset(LungClinical, age > 65 & age <= 70))
+
+targeted_therapy <- subset(LungClinical, target_tx == "YES")
+mean(targeted_therapy$age)
+sd(targeted_therapy$age)
+
+no_therapy <- subset(LungClinical, target_tx == "NO")
+mean(no_therapy$age)
+sd(no_therapy$age)
+```
+
+139 people have an age greater than 60 and less than or equal to 70. The mean age among those that received targeted therapy is 60.414, and the standard deviation is 12.7703. The mean age among those who did not receive targeted therapy is 64.312, and the standard deviation is 11.236.  
+
+Problem 3
+```{r}
+LungClinical$Immune[is.na(LungClinical$immune_tx)] <- "NO"
+LungClinical$Chemo[is.na(LungClinical$chemo_tx)] <- "NO"
+LungClinical$Target <- ifelse(LungClinical$target_tx == "YES", 1, 0)
+LungClinical$Immune <- ifelse(LungClinical$immune_tx == "YES", 1, 0)
+LungClinical$Chemo <- ifelse(LungClinical$chemo_tx == "YES", 1, 0)
+nrow(subset(LungClinical, Target + Immune + Chemo > 1))
+```
+
+
+```{r}
+nrow(subset(LungClinical, target_tx=="NO" & immune_tx=="NO" & chemo_tx=="NO"))
+```
+
+351 people received more than one treatment, and 57 people received none of the three treatments.  
+
+Problem 4
+```{r}
+OnlyTarget <- subset(LungClinical, Target==1 & Immune==0 & Chemo==0)
+sum(OnlyTarget$durable_response=="YES", na.rm=TRUE)/sum(OnlyTarget$durable_response=="YES", OnlyTarget$durable_response=="NO", na.rm=TRUE)
+```
+
+```{r}
+OnlyChemo <- subset(LungClinical, Target==0 & Immune==0 & Chemo==1)
+sum(OnlyChemo$durable_response=="YES", na.rm=TRUE)/sum(OnlyChemo$durable_response=="YES", OnlyChemo$durable_response=="NO", na.rm=TRUE)
+
+```
+
+The durable response rate among those who only had targeted therapy was 0.91. The durable response rate among those who only had chemo therapy was 0.07143.  
+
+Problem 5  
+```{r include=FALSE}
+LungMolecular <- read_csv("C:\\Users\\Main\\Documents\\BST607\\LungMolecular.csv")
+```
+
+
+```{r}
+patient_counts <- table(LungMolecular$patient_id)
+sum(patient_counts>1)
+sum(patient_counts>2)
+```
+
+54 patients have more than 1 tumor sample, 1 patient has greater than 2 tumor samples.  
+
+Problem 6
+```{r}
+nrow(subset(LungMolecular, sample_type=="Primary" & tmb>10))
+nrow(subset(LungMolecular, sample_type=="Primary"))
+97/471*100
+```
+```{r}
+nrow(subset(LungMolecular, sample_type=="Metastasis" & tmb>10))
+nrow(subset(LungMolecular, sample_type=="Metastasis"))
+121/444*100
+```
+20.59% of Primary tumors have a tmb value of greater than 10. 27.25% of Metastatic tumors have a tmb value of greater than 10.  
+
+Problem 7
+```{r}
+unique_patient_ids <- unique(LungMolecular$patient_id)
+LungMolecularShort <- data.frame()
+
+for (patient in unique_patient_ids) {
+  patient_data <- LungMolecular[LungMolecular$patient_id == patient, ]
+  if (nrow(patient_data) > 1) {
+    last_sample <- patient_data[nrow(patient_data), ]
+  } else {
+    last_sample <- patient_data
+  }
+  LungMolecularShort <- rbind(LungMolecularShort, last_sample)
+}
+
+```
+
+
+Problem 8  
+```{r}
+CompleteLung <- merge(LungClinical, LungMolecularShort, by = "patient_id")
+```
+
+
+Problem 9
+```{r}
+nrow(subset(CompleteLung, driver_mutation=="EGFR" & durable_response=="YES"))
+nrow(subset(CompleteLung, driver_mutation=="EGFR" & (durable_response=="YES" | durable_response=="NO")))
+176/210
+```
+
+```{r}
+CompleteLung_filtered <- subset(CompleteLung, driver_mutation != "UNKNOWN DRIVER")
+topMutations <- sort(table(CompleteLung_filtered$driver_mutation), decreasing=TRUE)[1:5]
+
+top_mutation_names <- names(topMutations)
+top_mutation_names
+```
+
+
+```{r}
+results <- list()
+
+for (mutation in top_mutation_names) {
+  with_mutation <- subset(CompleteLung, driver_mutation == mutation & (durable_response=="YES" | durable_response=="NO"))
+  durable_response_rate_with <- nrow(subset(CompleteLung, driver_mutation==mutation & durable_response=="YES"))/nrow(with_mutation)
+  
+
+  without_mutation <- subset(CompleteLung, driver_mutation != mutation & (durable_response=="YES" | durable_response=="NO"))
+  
+
+  durable_response_rate_without <- nrow(subset(CompleteLung, driver_mutation!= mutation & durable_response=="YES"))/nrow(without_mutation)
+  
+  results[[mutation]] <- list(
+    mutation = mutation,
+    durable_rate_with_mutation = durable_response_rate_with,
+    durable_rate_without_mutation = durable_response_rate_without
+  )
+}
+
+results
+```
+
+Problem 10
+```{r}
+# Initialize the matrix with 20 rows and 3 columns
+result_matrix <- matrix(0, nrow = 20, ncol = 3)
+
+# Loop through values of k from 1 to 20
+for (k in 1:20) {
+  
+# Store k in the first column
+result_matrix[k, 1] <- k
+  
+# Subset the data for individuals with tmb < k
+tmb_less_than_k <- subset(CompleteLung, tmb < k & (durable_response=="YES" | durable_response=="NO"))
+denominator <- nrow(tmb_less_than_k)
+numerator <- nrow(subset(tmb_less_than_k, durable_response=="YES"))
+  
+# Calculate the durable response rate for tmb < k
+if (nrow(tmb_less_than_k) > 0) {
+  durable_response_rate_less <- numerator/denominator
+} 
+  
+# Subset the data for individuals with tmb >= k
+tmb_greater_equal_k <- subset(CompleteLung, tmb >= k & (durable_response=="YES" | durable_response=="NO"))
+denominator2 <-  nrow(tmb_greater_equal_k)
+numerator2 <- nrow(subset(tmb_greater_equal_k, durable_response == "YES"))
+  
+# Calculate the durable response rate for tmb >= k
+if (nrow(tmb_greater_equal_k) > 0) {
+  durable_response_rate_greater <- numerator2/denominator2
+} 
+  
+# Store the durable response rates in the second and third columns
+result_matrix[k, 2] <- durable_response_rate_less
+result_matrix[k, 3] <- durable_response_rate_greater
+}
+result_matrix
+
+# Convert the matrix into a data frame
+result_df <- as.data.frame(result_matrix)
+colnames(result_df) <- c("k", "Durable_Response_Less_k", "Durable_Response_GreaterEqual_k")
+
+#the absolute difference between the two response rates
+result_df$difference <- abs(result_df$Durable_Response_Less_k - result_df$Durable_Response_GreaterEqual_k)
+
+# Find the value(s) of k that result in the largest difference
+max_diff <- max(result_df$difference)
+max_diff_k <- result_df[which(result_df$difference == max_diff), "k"]
+max_diff
+max_diff_k
+
+```
+
+The values of k that result in the largest difference in response rate (0.5763975) are 16 17 18.  
+
+Problem 11
+```{r}
+compute_ln_tmb <- function(tmb) {
+  return(log(1 + tmb))
+}
+CompleteLung_filtered$ln_tmb <- compute_ln_tmb(CompleteLung_filtered$tmb)
+
+topMutations
+PlotData <- subset(CompleteLung_filtered, driver_mutation==top_mutation_names)
+ggplot(PlotData, aes(x = driver_mutation, y = ln_tmb)) +
+  geom_boxplot() +
+  labs(
+    title = "Box Plot of ln(1 + tmb) for Top 5 Driver Mutations",
+    x = "Driver Mutation",
+    y = "ln(1 + tmb)"
+  ) +
+  theme_minimal()
+```
+
